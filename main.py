@@ -237,6 +237,7 @@ sidebar_bg_img = """
     </style>                 
             
 """
+
 def upload_xml(db_path, xml_file_path):
         # Connect to the SQLite database
         conn = sqlite3.connect(db_path)
@@ -299,7 +300,7 @@ def retrieve_xml(db_path, record_id, output_file_path):
 # Example usage for uploading XML
 db_path = 'xmlDB.db'
 
-#Function for writing the XML file
+# Function for writing the XML file
 def save_modified_xml(file_name, tree):
     modified_xml = BytesIO()
     tree.write(modified_xml, encoding='utf-8', xml_declaration=True)
@@ -312,8 +313,17 @@ def time_to_decimal_hours(time_str):
     minutes = dt.minute
     decimal_hours = hours + minutes / 60      # Convert time to decimal hours
     return decimal_hours
-    
-#Main Function 
+
+# Function to update unload_date to the current timestamp
+def update_unload_date(root):
+    """Update the unload_date element to the current timestamp."""
+    unload_date_elements = root.findall(".//*[@unload_date]")
+    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for elem in unload_date_elements:
+        elem.set("unload_date", current_timestamp)
+    print(f"Unload date updated to {current_timestamp}.")
+
+# Main Function 
 def main():
     # Initialize session state variables
     if 'previous_file_index' not in st.session_state:
@@ -337,6 +347,7 @@ def main():
         my_bar.progress(percent_complete + 1, text=progress_text)
     time.sleep(1)
     my_bar.empty()
+
     # Sidebar for file selection and source update
     st.sidebar.title("ServiceNow ENGINEERING DEMO DATA MODIFIER")
     st.sidebar.divider()
@@ -444,6 +455,10 @@ def main():
             root = tree.getroot()
             
             display_file_name = selected_file_name.replace("_", " ").replace(".xml", " ").title()
+
+        # Update the unload_date to the current timestamp
+        update_unload_date(root)
+
         st.header(f"Update {display_file_name}")
         st.write(" ")
         elements = None
@@ -452,7 +467,6 @@ def main():
         denial = root.find('.//samp_eng_app_denial[@action="INSERT_OR_UPDATE"]')
         
         # Find all elements with the specified action attribute
-        
         elements = root.findall(".//*[@action]")
             
         # Count the elements
@@ -503,7 +517,7 @@ def main():
             usg = usage_class(tree, root, min_range, max_range, db_path, new_source, new_date,
                               total_idle_dur, total_session_dur, file_changed, def_file)
 
-            # Check if the 'update_button' is press
+            # Check if the 'update_button' is pressed
             if update_button:
 
                 # If a new source is provided, update the usage source
@@ -538,7 +552,7 @@ def main():
             # Display the usage information
             usg.disp_usage()
 
-            #For Graphs of Usage Summary
+            # For Graphs of Usage Summary
             with placeholder1:
                  
                 df = pd.DataFrame({
@@ -551,7 +565,7 @@ def main():
                 col1, col2= st.columns((2))
                 df['usage_date'] = pd.to_datetime(df['usage_date'])
 
-                #Getting the min and max date
+                # Getting the min and max date
                 startDate = pd.to_datetime(df['usage_date']).min()
                 endDate = pd.to_datetime(df['usage_date']).max()
 
@@ -566,7 +580,7 @@ def main():
 
                 with col3:
                     containerA = st.container(border=True, height=400)
-                    containerA.subheader("Sesion Duration over time")
+                    containerA.subheader("Session Duration over time")
                     datetime_strings = df['total_sess_dur']
                     decimal_hours_list = [time_to_decimal_hours(dt_str) for dt_str in datetime_strings]
                     
@@ -584,7 +598,7 @@ def main():
                         height=320
                     )
                     
-                    usage_count= pd.Series(df['total_sess_dur']).astype(int)
+                    usage_count = pd.Series(df['total_sess_dur']).astype(int)
                    
                     with col4:
                         containerProducts = st.container(border=True, height=400)
@@ -643,7 +657,7 @@ def main():
             # Display the concurrent information
             conc.disp_concurrent()
 
-            #For Graphs of Concurrent Usage
+            # For Graphs of Concurrent Usage
             with placeholder1:
                 
                 df = pd.DataFrame({
@@ -652,11 +666,11 @@ def main():
                     'Product': conc.get_license_name()
                 })
 
-                #Dates Tab Graph
+                # Dates Tab Graph
                 col1, col2= st.columns((2))
                 df['usage_date'] = pd.to_datetime(df['usage_date'])
 
-                #Getting the min and max date
+                # Getting the min and max date
                 startDate = pd.to_datetime(df['usage_date']).min()
                 endDate = pd.to_datetime(df['usage_date']).max()
 
@@ -717,7 +731,7 @@ def main():
             # Display the denial information       
             deny.disp_denial()
             
-            #Code for Graphs of Denial
+            # Code for Graphs of Denial
             with placeholder1:
  
                 df = pd.DataFrame({
@@ -760,8 +774,6 @@ def main():
                     array = pd.Series(df['denial_count'])
                     array_int = array.astype(int).sum()
                     container2.metric(label="Total Denial Count", value= array_int)
-                    #container2.subheader("Total Denial Count")
-                    #container2.header(array_int)
 
                 with col4:
                     dfUser = pd.DataFrame({
@@ -805,13 +817,14 @@ def main():
         else:
             st.write(f"Unknown file type: {file_name}")
             return
+
 if __name__ == "__main__":
     DDMIcon= Image.open("DDM_Icon.ico")
     st.set_page_config(
         page_title="SVN Demo Data Modifier",
         layout="wide",
         page_icon=DDMIcon
-        )
+    )
     
     st.markdown(sidebar_bg_img, unsafe_allow_html=True)
     st.logo("logoSN.png")
